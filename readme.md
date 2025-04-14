@@ -1,0 +1,3 @@
+# Hypergeometric Sums
+
+A basic implementation of computer algebra algorithms leading towards an implementation of Zeilberger's algorithm for finding closed forms of hypergeometric series! Algorithms related to hypergeometric summation (Sister Celine's, Zeilberger's, WZ, Gosper's, Hyper) are taken from the wonderful (and free) book "A = B" by Petkovsek, Wilf, and Zeilberger. Other algorithms are taken from the book "Algorithms for Computer Algebra" by Geddes, Szapor, and Labahn. 
