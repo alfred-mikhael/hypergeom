@@ -1,7 +1,9 @@
 #include "./polynomial.h"
 #include "../numeric/euclid.h"
+
 #include "stdio.h"
 #include "stdlib.h"
+#include "math.h"
 
 polynomial init_polynomial(size_t num_terms, int const coeffs[num_terms], int const degs[num_terms]) {
     polynomial p = {
@@ -130,4 +132,33 @@ void prim_inplace(polynomial* p) {
     for (int i = 0; i < p->n; i++) {
         p->terms[i].coeff /= c;
     }
+}
+
+polynomial pquo(polynomial const* p, polynomial const* q) {
+    
+}
+
+polynomial prem(polynomial const* p, polynomial const* q) {
+
+}
+
+/* Requires that deg(p) >= deg(q). */
+polynomial quo(polynomial const* p, polynomial const* q) {
+    assert(deg(p) >= deg(q));
+    term* terms = calloc(deg(p) / deg(q), sizeof(term));
+    int n = deg(p) / deg(q) + 1;
+
+}
+
+polynomial rem(polynomial const* p, polynomial const* q) {
+
+}
+
+/* Assumes that the terms of the polynomials are sorted by exponent!  */
+long lc(polynomial const* p) {
+    return p->terms[p->n - 1].coeff;
+}
+/* Assumes that the terms of the polynomials are sorted by exponent!  */
+int deg(polynomial const* p) {
+    return p->terms[p->n - 1].exp;
 }
