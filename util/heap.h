@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <math.h>
 #include <assert.h>
+#include <stdlib.h>
 #include "../polynomial/polynomial.h"
 
 typedef struct heap heap;
@@ -28,9 +29,9 @@ struct heap {
 
 int decrease_key(heap* h, size_t elem, int new_key);
 
-int insert(heap* h, term t);
+int heap_insert(heap* h, term t);
 
-int remove(heap* h, size_t elem);
+int heap_remove(heap* h, size_t elem);
 
 /* Don't want to return pointer here because the memory might be overwritten by heap operations. */
 term extract_min(heap* h);
@@ -44,16 +45,18 @@ int up_heap(heap* h, size_t elem);
 /* Builds a min-heap of the n elements in arr. Reorders arr in-place and continues to modify it afterwards. */
 heap* build_min_heap(size_t n, term* arr);
 
-inline size_t left(size_t i) {
+void free_heap(heap* h);
+
+static inline size_t left(size_t i) {
+    return 2 * i + 1;
+}
+
+static inline size_t right(size_t i) {
     return 2 * i + 2;
 }
 
-inline size_t right(size_t i) {
-    return 2 * i + 2
-}
-
 /* If i = 0, returns 0. i.e. parent of the root is the root. */
-inline size_t parent(size_t i) {
+static inline size_t parent(size_t i) {
     if (i == 0) return 0;
     return (i - 1) / 2;
 }

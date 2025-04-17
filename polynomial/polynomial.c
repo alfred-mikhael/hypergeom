@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "math.h"
+#include "assert.h"
 
 polynomial init_polynomial(size_t num_terms, int const coeffs[num_terms], int const degs[num_terms]) {
     polynomial p = {
@@ -80,7 +81,7 @@ polynomial negate(polynomial const p) {
 
 void display(const polynomial* const p) {
     for (size_t i = 0; i < p->n; i++) {
-        printf("%d", p->terms[i].coeff);
+        printf("%ld", p->terms[i].coeff);
         if (i > 0) {
             printf("x^%d", p->terms[i].exp);
         }

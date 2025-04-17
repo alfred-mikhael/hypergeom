@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <stdio.h>
 #include "./heap.h"
 
 
@@ -6,21 +8,22 @@ int decrease_key(heap* h, size_t elem, int new_key) {
     return up_heap(h, elem);
 }
 
-int insert(heap* h, term t) {
+int heap_insert(heap* h, term t) {
     if (h->heap_size < h->heap_max) {
         h->arr[h->heap_size] = t;
         up_heap(h, h->heap_size);
         h->heap_size += 1;
+        return 0;
     } else {
         /* If at max memory, double the size of the list. This gives O(1) amortized insertion. */
-        h->arr = reallocarray(h->arr, 2 * h->heap_max);
+        h->arr = reallocarray(h->arr, 2 * h->heap_max, sizeof(term));
         if (!h->arr) perror("Could not allocate more memory in exponent heap");
         h->heap_max = 2 * h->heap_max;
-        insert(h, t);
+        return heap_insert(h, t);
     }
 }
 
-int remove(heap* h, size_t elem) {
+int heap_remove(heap* h, size_t elem) {
     if (elem > h->heap_size) return 1;
 
     if (elem == h->heap_size) {
@@ -31,8 +34,9 @@ int remove(heap* h, size_t elem) {
     h->heap_size -= 1;
     heapify(h, elem);
 
-    /* In order to avoid wasting memory, make sure that */
-    if (h->heap_size <= (int) (0.25 * h->heap_max)) {
+    /* In order to avoid wasting memory, make sure that heap is always 1/4 full. */
+    /* Except in the case when heap_size is very small, when it is not worth it. */
+    if (h->heap_size > 20 && h->heap_size < (int) (0.25 * h->heap_max)) {
         h->heap_max = (int) (0.5 * h-> heap_max);
         h->arr = realloc(h->arr, h->heap_max);
         if (!h->arr) perror("Could not resize exponent heap after removal");
@@ -47,8 +51,15 @@ term extract_min(heap* h) {
 
     h->arr[0] = h->arr[h->heap_size - 1];
     h->heap_size -= 1;
-    heapify(h, 0);
 
+    /* In order to avoid wasting memory, make sure that heap is always 1/4 full */
+    if (h->heap_size > 20 && h->heap_size < (int) (0.25 * h->heap_max)) {
+        h->heap_max = (int) (0.5 * h-> heap_max);
+        h->arr = realloc(h->arr, h->heap_max);
+        if (!h->arr) perror("Could not resize exponent heap after removal");
+    }
+
+    heapify(h, 0);
     return min;
 }
 
@@ -60,20 +71,21 @@ term find_min(heap const* h) {
 int heapify(heap* h, size_t root) {
     size_t l = left(root);
     size_t r = right(root);
-    size_t largest = root;
+    size_t smallest = root;
 
-    if (l <= h->heap_size && h->arr[l].exp < h->arr[root].exp) {
-        largest = l;
+    if (l < h->heap_size && h->arr[l].exp < h->arr[smallest].exp) {
+        smallest = l;
     }
-    if (r <= h->heap_size && h->arr[r].exp < h->arr[root].exp) {
-        largest = r;
+    if (r < h->heap_size && h->arr[r].exp < h->arr[smallest].exp) {
+        smallest = r;
     }
-    if (largest != root) {
+    if (smallest != root) {
         term t = h->arr[root];
-        h->arr[root] = h->arr[largest];
-        h->arr[largest] = t;
-        heapify(h, largest);
+        h->arr[root] = h->arr[smallest];
+        h->arr[smallest] = t;
+        return heapify(h, smallest);
     }
+    return 0;
 }
 
 int up_heap(heap* h, size_t elem) {
@@ -95,12 +107,22 @@ int up_heap(heap* h, size_t elem) {
 
 /* Builds a min-heap of the n elements in arr. Reorders arr in-place and continues to modify it afterwards. */
 heap* build_min_heap(size_t n, term* arr) {
-    heap h = {
-        .heap_max = n,
-        .heap_size = n,
-        .arr = arr
-    };
-    for (size_t i = n / 2; i >= 0; i--) {
-        heapify(&h, i);
+    heap* h = malloc(sizeof(heap));
+    if (!h) perror("Couldn't allocate memory in build_min_heap");
+    
+    *h = (heap){.heap_max = n, .heap_size = n, .arr = arr};
+
+    for (size_t i = (size_t)(n / 2); i > 0; i--) {
+        heapify(h, i);
     }
+    // avoids overflow error by decrementing size_t to 0
+    heapify(h, 0);
+    return h;
+}
+
+void free_heap(heap* h) {
+    free(h->arr);
+    h->arr = 0;
+    free(h);
+    h = 0;
 }
