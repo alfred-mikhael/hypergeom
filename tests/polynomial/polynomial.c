@@ -1,4 +1,4 @@
-#include "polynomial/polynomial.h"
+#include "../../polynomial/polynomial.h"
 #include "stdio.h"
 
 int main(int argc, char* argv[argc]) {
@@ -16,8 +16,11 @@ int main(int argc, char* argv[argc]) {
     display(&p);
     display(&g);
 
-    polynomial h = add(p, g);
+    polynomial h = add(&p, &g);
     display(&h);
+
+    polynomial h2 = prod(&p, &g);
+    display(&h2);
 
     return 0;
 }

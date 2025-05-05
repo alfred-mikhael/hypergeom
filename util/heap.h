@@ -36,7 +36,7 @@ int heap_remove(heap* h, size_t elem);
 /* Don't want to return pointer here because the memory might be overwritten by heap operations. */
 term extract_min(heap* h);
 
-term find_min(heap const* h);
+term find_min(const heap* const h);
 
 int heapify(heap* h, size_t root);
 
@@ -44,6 +44,8 @@ int up_heap(heap* h, size_t elem);
 
 /* Builds a min-heap of the n elements in arr. Reorders arr in-place and continues to modify it afterwards. */
 heap* build_min_heap(size_t n, term* arr);
+
+term* heap_sort(size_t n, term* arr);
 
 void free_heap(heap* h);
 
@@ -59,6 +61,10 @@ static inline size_t right(size_t i) {
 static inline size_t parent(size_t i) {
     if (i == 0) return 0;
     return (i - 1) / 2;
+}
+
+static inline int is_empty(const heap* const h) {
+    return (h->heap_size == 0);
 }
 
 #endif

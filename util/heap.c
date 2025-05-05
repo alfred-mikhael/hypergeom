@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "./heap.h"
 
 
@@ -63,7 +64,7 @@ term extract_min(heap* h) {
     return min;
 }
 
-term find_min(heap const* h) {
+term find_min(const heap* const h) {
     assert(h->heap_size > 0);
     return h->arr[0];
 }
@@ -118,6 +119,21 @@ heap* build_min_heap(size_t n, term* arr) {
     // avoids overflow error by decrementing size_t to 0
     heapify(h, 0);
     return h;
+}
+
+term* heap_sort(size_t n, term* arr) {
+    heap* h = build_min_heap(n, arr);
+    term* out = malloc(n * sizeof(term));
+    size_t i = 0;
+    term t;
+    while(!is_empty(h)) {
+        t = extract_min(h);
+        out[i].coeff = t.coeff;
+        out[i].exp = t.exp;
+        i++;
+    }
+    free_heap(h);
+    return out;
 }
 
 void free_heap(heap* h) {

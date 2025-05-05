@@ -1,5 +1,6 @@
 #include "./polynomial.h"
 #include "../numeric/euclid.h"
+#include "../util/heap.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -21,40 +22,40 @@ polynomial init_polynomial(size_t num_terms, int const coeffs[num_terms], int co
 }
 
 /* Assumes that the terms are sorted. */
-polynomial add(polynomial const p1, polynomial const p2) {
-    size_t max_terms = p1.n + p2.n;
+polynomial add(const polynomial* const p1, const polynomial* const p2) {
+    size_t max_terms = p1->n + p2->n;
     term* terms = calloc(max_terms, sizeof(term));
 
     int i = 0, j = 0, k = 0;
-    while (i < p1.n && j < p2.n) {
-        if (p1.terms[i].exp == p2.terms[j].exp) {
-            if (p1.terms[i].coeff + p2.terms[j].coeff > 0) {
-                terms[k].coeff = (p1.terms[i].coeff + p2.terms[j].coeff);
-                terms[k].exp = p1.terms[i].exp;
+    while (i < p1->n && j < p2->n) {
+        if (p1->terms[i].exp == p2->terms[j].exp) {
+            if (p1->terms[i].coeff + p2->terms[j].coeff > 0) {
+                terms[k].coeff = (p1->terms[i].coeff + p2->terms[j].coeff);
+                terms[k].exp = p1->terms[i].exp;
                 i++; j++; k++;
             }
         }
-        else if (p1.terms[i].exp > p2.terms[j].exp) {
-            terms[k].coeff = p2.terms[j].coeff;
-            terms[k].exp = p2.terms[j].exp;
+        else if (p1->terms[i].exp > p2->terms[j].exp) {
+            terms[k].coeff = p2->terms[j].coeff;
+            terms[k].exp = p2->terms[j].exp;
             j++; k++;
         }
         else {
-            terms[k].coeff = p1.terms[i].coeff;
-            terms[k].exp = p1.terms[i].exp;
+            terms[k].coeff = p1->terms[i].coeff;
+            terms[k].exp = p1->terms[i].exp;
             i++; k++;
         }
     }
 
-    while (i < p1.n) {
-        terms[k].coeff = p1.terms[i].coeff;
-        terms[k].exp = p1.terms[i].exp;
+    while (i < p1->n) {
+        terms[k].coeff = p1->terms[i].coeff;
+        terms[k].exp = p1->terms[i].exp;
         i++; k++;
     }
 
-    while (j < p2.n) {
-        terms[k].coeff = p2.terms[j].coeff;
-        terms[k].exp = p2.terms[j].exp;
+    while (j < p2->n) {
+        terms[k].coeff = p2->terms[j].coeff;
+        terms[k].exp = p2->terms[j].exp;
         j++; k++;
     }
 
@@ -65,14 +66,14 @@ polynomial add(polynomial const p1, polynomial const p2) {
     return p;
 }
 
-polynomial negate(polynomial const p) {
-    term* terms = calloc(p.n, sizeof(term));
-    for (size_t i = 0; i < p.n; i++) {
-        terms[i].coeff = -p.terms[i].coeff;
-        terms[i].exp = p.terms[i].exp;
+polynomial negate(const polynomial* const p) {
+    term* terms = calloc(p->n, sizeof(term));
+    for (size_t i = 0; i < p->n; i++) {
+        terms[i].coeff = -p->terms[i].coeff;
+        terms[i].exp = p->terms[i].exp;
     }
     polynomial g = {
-        .n = p.n,
+        .n = p->n,
         .terms = terms
     };
 
@@ -102,7 +103,7 @@ void free_polynomial(polynomial* p) {
 }
 
 /* Computes the content of a polynomial p */
-long cont(const polynomial* p) {
+long cont(const polynomial* const p) {
     if (p->n == 1) {
         return p->terms[0].coeff;
     }
@@ -113,7 +114,7 @@ long cont(const polynomial* p) {
     return curr_gcd;
 }
 
-polynomial prim(const polynomial* p) {
+polynomial prim(const polynomial* const p) {
     long c = cont(p);
     term* terms = calloc(p->n, sizeof(term));
 
@@ -128,38 +129,77 @@ polynomial prim(const polynomial* p) {
     return g;
 }
 
-void prim_inplace(polynomial* p) {
+void prim_inplace(polynomial* const p) {
     long c = cont(p);
     for (int i = 0; i < p->n; i++) {
         p->terms[i].coeff /= c;
     }
 }
 
-polynomial pquo(polynomial const* p, polynomial const* q) {
+polynomial prod(const polynomial* const p, const polynomial* const q) {
+    term* out = calloc(p->n * q->n, sizeof(term));
+    for (size_t i = 0; i < p->n; i++) {
+        for (size_t j = 0; j < q->n; j++) {
+            out[q->n * i + j].coeff = p->terms[i].coeff * q->terms[j].coeff;
+            out[q->n * i + j].exp = p->terms[i].exp + q->terms[j].exp;
+        }
+    }
+    // sort array
+    out = heap_sort(p->n * q->n, out);
+    // collect like terms
+    int last_exp = out[0].exp;
+    long last_coeff = 0;
+    size_t curr_index = 0;
+    size_t new_index = 0;
+    while (curr_index < p->n * q->n) {
+        if (out[curr_index].exp > last_exp) {
+            out[new_index].coeff = last_coeff;
+            out[new_index].exp = last_exp;
+            // reset the coefficient sum
+            last_coeff = 0;
+            new_index++; 
+        }
+        last_exp = out[curr_index].exp;
+        last_coeff += out[curr_index].coeff;
+        curr_index++;
+    }
+    // add the highest degree term (wasn't added in the while loop)
+    out[new_index].coeff = last_coeff;
+    out[new_index].exp = last_exp;
+    new_index++;
+    // avoid wasting memory
+    out = realloc(out, new_index * sizeof(term));
+    polynomial g = {
+        .n = new_index,
+        .terms = out
+    };
+    return g;
+} 
+
+polynomial pquo(const polynomial* const p, const polynomial* const q) {
     
 }
 
-polynomial prem(polynomial const* p, polynomial const* q) {
+polynomial prem(const polynomial* const p, const polynomial* const q) {
 
 }
 
 /* Requires that deg(p) >= deg(q). */
-polynomial quo(polynomial const* p, polynomial const* q) {
+polynomial quo(const polynomial* const p, const polynomial* const q) {
     assert(deg(p) >= deg(q));
     term* terms = calloc(deg(p) / deg(q), sizeof(term));
     int n = deg(p) / deg(q) + 1;
-
 }
 
-polynomial rem(polynomial const* p, polynomial const* q) {
+polynomial rem(const polynomial* const p, const polynomial* const q) {
 
 }
 
 /* Assumes that the terms of the polynomials are sorted by exponent!  */
-long lc(polynomial const* p) {
+long lc(const polynomial* const p) {
     return p->terms[p->n - 1].coeff;
 }
 /* Assumes that the terms of the polynomials are sorted by exponent!  */
-int deg(polynomial const* p) {
+int deg(const polynomial* const p) {
     return p->terms[p->n - 1].exp;
 }
