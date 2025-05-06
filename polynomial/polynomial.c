@@ -6,6 +6,7 @@
 #include "stdlib.h"
 #include "math.h"
 #include "assert.h"
+#include "string.h" // for memcpy
 
 polynomial init_polynomial(size_t num_terms, int const coeffs[num_terms], int const degs[num_terms]) {
     polynomial p = {
@@ -29,13 +30,14 @@ polynomial add(const polynomial* const p1, const polynomial* const p2) {
     int i = 0, j = 0, k = 0;
     while (i < p1->n && j < p2->n) {
         if (p1->terms[i].exp == p2->terms[j].exp) {
-            if (p1->terms[i].coeff + p2->terms[j].coeff > 0) {
+            if (p1->terms[i].coeff + p2->terms[j].coeff) {
                 terms[k].coeff = (p1->terms[i].coeff + p2->terms[j].coeff);
                 terms[k].exp = p1->terms[i].exp;
-                i++; j++; k++;
+                k++;
             }
+            i++; j++;
         }
-        else if (p1->terms[i].exp > p2->terms[j].exp) {
+        else if (p1->terms[i].exp < p2->terms[j].exp) {
             terms[k].coeff = p2->terms[j].coeff;
             terms[k].exp = p2->terms[j].exp;
             j++; k++;
@@ -80,10 +82,16 @@ polynomial negate(const polynomial* const p) {
     return g;
 }
 
+void negate_in_place(polynomial* const p) {
+    for (size_t i = 0; i < p->n; i++) {
+        p->terms[i].coeff = -p->terms[i].coeff;
+    }
+}
+
 void display(const polynomial* const p) {
     for (size_t i = 0; i < p->n; i++) {
         printf("%ld", p->terms[i].coeff);
-        if (i > 0) {
+        if (p->terms[i].exp > 0) {
             printf("x^%d", p->terms[i].exp);
         }
         if (i < p->n - 1) {
@@ -137,6 +145,14 @@ void prim_inplace(polynomial* const p) {
 }
 
 polynomial prod(const polynomial* const p, const polynomial* const q) {
+    if (!p->n || !q->n) {
+        polynomial g = {
+            .terms = malloc(0),
+            .n = 0
+        };
+        return g;
+    }
+
     term* out = calloc(p->n * q->n, sizeof(term));
     for (size_t i = 0; i < p->n; i++) {
         for (size_t j = 0; j < q->n; j++) {
@@ -152,7 +168,7 @@ polynomial prod(const polynomial* const p, const polynomial* const q) {
     size_t curr_index = 0;
     size_t new_index = 0;
     while (curr_index < p->n * q->n) {
-        if (out[curr_index].exp > last_exp) {
+        if (out[curr_index].exp < last_exp) {
             out[new_index].coeff = last_coeff;
             out[new_index].exp = last_exp;
             // reset the coefficient sum
@@ -163,7 +179,7 @@ polynomial prod(const polynomial* const p, const polynomial* const q) {
         last_coeff += out[curr_index].coeff;
         curr_index++;
     }
-    // add the highest degree term (wasn't added in the while loop)
+    // add the lowest degree term (wasn't added in the while loop)
     out[new_index].coeff = last_coeff;
     out[new_index].exp = last_exp;
     new_index++;
@@ -184,11 +200,61 @@ polynomial prem(const polynomial* const p, const polynomial* const q) {
 
 }
 
-/* Requires that deg(p) >= deg(q). */
+/* Requires that deg(p) >= deg(q). Returns p/q. */
 polynomial quo(const polynomial* const p, const polynomial* const q) {
     assert(deg(p) >= deg(q));
-    term* terms = calloc(deg(p) / deg(q), sizeof(term));
-    int n = deg(p) / deg(q) + 1;
+
+    term* terms = calloc(deg(p) - deg(q) + 1, sizeof(term));
+    size_t n = deg(p) - deg(q) + 1;
+
+    polynomial g = {
+        .terms = terms,
+        .n = 0
+    };
+
+    int d = deg(q);
+    long c = lc(q);
+
+    polynomial curr_rem = {
+        .terms = malloc(p->n * sizeof(term)),
+        .n = p->n
+    };
+
+    polynomial curr_prod = {
+        .terms = malloc(q->n * sizeof(term)),
+        .n = q->n
+    };
+
+    memcpy(curr_rem.terms, p->terms, p->n * sizeof(term));
+
+    term t;
+    size_t i = 0;
+    while (i < n) {
+        t.exp = deg(&curr_rem);
+        t.coeff = lc(&curr_rem);
+
+        // if remainder has degree less than q or if 
+        // the leading coefficient of q doesn't divide the leading coefficient of the remainder.
+        if (t.exp < d || (t.coeff % c) ) {
+            break;
+        }
+
+        g.terms[i].exp = t.exp - d;
+        g.terms[i].coeff = t.coeff / c;
+        g.n += 1;
+
+        for (size_t j = 0; j < q->n; j++) {
+            curr_prod.terms[j].exp = q->terms[j].exp + g.terms[i].exp;
+            curr_prod.terms[j].coeff = q->terms[j].coeff * g.terms[i].coeff;
+        }
+
+        negate_in_place(&curr_prod);
+        curr_rem = add(&curr_rem, &curr_prod);
+        i++;
+    }
+    // avoid memory leak
+    g.terms = realloc(g.terms, i * sizeof(term));
+    return g;
 }
 
 polynomial rem(const polynomial* const p, const polynomial* const q) {
@@ -197,9 +263,9 @@ polynomial rem(const polynomial* const p, const polynomial* const q) {
 
 /* Assumes that the terms of the polynomials are sorted by exponent!  */
 long lc(const polynomial* const p) {
-    return p->terms[p->n - 1].coeff;
+    return p->terms[0].coeff;
 }
 /* Assumes that the terms of the polynomials are sorted by exponent!  */
 int deg(const polynomial* const p) {
-    return p->terms[p->n - 1].exp;
+    return p->terms[0].exp;
 }

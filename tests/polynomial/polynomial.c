@@ -4,11 +4,11 @@
 int main(int argc, char* argv[argc]) {
 
     // testing polynomials
-    int c1[] = {[0] = 1, [1] = 2};
-    int e1[] = {[0] = 0, [1] = 2};
+    int c1[] = {[1] = 1, [0] = 2};
+    int e1[] = {[1] = 0, [0] = 2};
 
-    int c2[] = {[0] = 1, [1] = 1};
-    int e2[] = {[0] = 0, [1] = 3};
+    int c2[] = {[1] = 1, [0] = 1};
+    int e2[] = {[1] = 0, [0] = 3};
 
     polynomial p = init_polynomial(2, c1, e1);
     polynomial g = init_polynomial(2, c2, e2);
@@ -21,6 +21,19 @@ int main(int argc, char* argv[argc]) {
 
     polynomial h2 = prod(&p, &g);
     display(&h2);
+
+    int c3[] = {[0] = 1, [1] = -1};
+    int e3[] = {[0] = 4, [1] = 0};
+
+    polynomial x = init_polynomial(2, c3, e3);
+
+    int c4[] = {[0] = 1, [1] = -1};
+    int e4[] = {[0] = 1, [1] = 0};
+
+    polynomial y = init_polynomial(2, c4, e4);
+
+    polynomial z = quo(&x, &y);
+    display(&z);
 
     return 0;
 }

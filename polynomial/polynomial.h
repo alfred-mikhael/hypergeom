@@ -26,6 +26,8 @@ polynomial add(const polynomial* const p1, const polynomial* const p2);
 
 polynomial negate(const polynomial* const p);
 
+void negate_in_place(polynomial* const p);
+
 void display(const polynomial*const p);
 
 void free_polynomial(polynomial* p);
