@@ -19,7 +19,13 @@ struct polynomial {
 
 polynomial init_polynomial(size_t num_terms, int const coeffs[num_terms], int const degs[num_terms]);
 
+polynomial zero_polynomial();
+
 polynomial add(const polynomial* const p1, const polynomial* const p2);
+
+polynomial scalar_prod(long s, const polynomial* const p);
+
+void scalar_prod_in_place(long s, polynomial* const p);
 
 // /* Adds p2 to p1 and returns p1. */
 // int add_inplace(polynomial* p1, polynomial* const p2);
@@ -36,7 +42,7 @@ long cont(const polynomial* const p);
 
 polynomial prim(const polynomial* const p);
 
-void prim_inplace(polynomial* const p);
+void prim_in_place(polynomial* const p);
 
 polynomial pquo(const polynomial* const p, const polynomial* const q);
 
@@ -47,6 +53,8 @@ polynomial quo(const polynomial* const p, const polynomial* const q);
 polynomial rem(const polynomial* const p, const polynomial* const q);
 
 polynomial prod(const polynomial* const p, const polynomial* const q);
+
+polynomial prim_gcd(const polynomial* const p, const polynomial* const q);
 
 long leval(polynomial* const p, long x);
 int ieval(polynomial* const p, int x);

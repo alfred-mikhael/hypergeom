@@ -2,8 +2,6 @@
 #include "stdio.h"
 
 int main(int argc, char* argv[argc]) {
-
-    // testing polynomials
     int c1[] = {[1] = 1, [0] = 2};
     int e1[] = {[1] = 0, [0] = 2};
 
@@ -34,6 +32,12 @@ int main(int argc, char* argv[argc]) {
 
     polynomial z = quo(&x, &y);
     display(&z);
+
+    polynomial z2 = prod(&p, &y);
+    display(&z2);
+
+    polynomial z3 = prim_gcd(&y, &z2);
+    display(&z3);
 
     return 0;
 }

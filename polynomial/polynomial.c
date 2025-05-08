@@ -1,6 +1,7 @@
 #include "./polynomial.h"
 #include "../numeric/euclid.h"
 #include "../util/heap.h"
+#include "../numeric/pow.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -20,6 +21,13 @@ polynomial init_polynomial(size_t num_terms, int const coeffs[num_terms], int co
         p.terms[i].exp = degs[i];
     }
     return p;
+}
+
+polynomial zero_polynomial() {
+    polynomial out;
+    out.terms = calloc(1, sizeof(term));
+    out.n = 0;
+    return out;
 }
 
 /* Assumes that the terms are sorted. */
@@ -65,7 +73,30 @@ polynomial add(const polynomial* const p1, const polynomial* const p2) {
         .n = k,
         .terms = realloc(terms, k * sizeof(term))
     };
+
+    // handle the exceptional case where all terms cancel
+    if (!k) {
+        return zero_polynomial();
+    }
     return p;
+}
+
+polynomial scalar_prod(long s, const polynomial* const p) {
+    polynomial g = {
+        .n = p->n,
+        .terms = malloc(p->n * sizeof(term))
+    };
+    memcpy(g.terms, p->terms, p->n * sizeof(term));
+    for (size_t i = 0; i < g.n; i++) {
+        g.terms[i].coeff *= s;
+    }
+    return g;
+}
+
+void scalar_prod_in_place(long s, polynomial* const p) {
+    for (size_t i = 0; i < p->n; i++) {
+        p->terms[i].coeff *= s;
+    }
 }
 
 polynomial negate(const polynomial* const p) {
@@ -119,6 +150,7 @@ long cont(const polynomial* const p) {
     for (int i = 1; i < p->n; i++) {
         curr_gcd = gcd(curr_gcd, p->terms[i].coeff);
     }
+    if (curr_gcd < 0) return -curr_gcd;
     return curr_gcd;
 }
 
@@ -137,9 +169,10 @@ polynomial prim(const polynomial* const p) {
     return g;
 }
 
-void prim_inplace(polynomial* const p) {
+void prim_in_place(polynomial* const p) {
     long c = cont(p);
     for (int i = 0; i < p->n; i++) {
+        // each coefficient is divisible by the content, so integer divison makes sense
         p->terms[i].coeff /= c;
     }
 }
@@ -193,11 +226,30 @@ polynomial prod(const polynomial* const p, const polynomial* const q) {
 } 
 
 polynomial pquo(const polynomial* const p, const polynomial* const q) {
-    
+    if (deg(p) < deg(q)) {
+        return zero_polynomial();
+    }
+
+    long b = lc(q);
+    b = long_pow(b, deg(p) - deg(q) + 1);
+    polynomial g = scalar_prod(b, p);
+    return quo(&g, q);
 }
 
 polynomial prem(const polynomial* const p, const polynomial* const q) {
+    polynomial g = pquo(p, q);
+    negate_in_place(&g);
+    polynomial gq = prod(&g, q);
 
+    free(g.terms);
+
+    long b = lc(q);
+    b = long_pow(b, deg(p) - deg(q) + 1);
+    polynomial sp = scalar_prod(b, p);
+    polynomial out = add(&sp, &gq);
+    free(gq.terms);
+    free(sp.terms);
+    return out;
 }
 
 /* Requires that deg(p) >= deg(q). Returns p/q. */
@@ -254,11 +306,48 @@ polynomial quo(const polynomial* const p, const polynomial* const q) {
     }
     // avoid memory leak
     g.terms = realloc(g.terms, i * sizeof(term));
+    free(curr_prod.terms);
+    curr_prod.terms = 0;
+    free(curr_rem.terms);
+    curr_rem.terms = 0;
     return g;
 }
 
 polynomial rem(const polynomial* const p, const polynomial* const q) {
+    polynomial g = quo(p, q);
+    negate_in_place(&g);
+    polynomial gq = prod(&g, q);
+    free(g.terms);
+    polynomial out = add(p, &gq);
+    free(gq.terms);
+    return out;
+}
 
+polynomial prim_gcd(const polynomial* const p, const polynomial* const q) {
+    if (deg(p) < deg(q)) {
+        return prim_gcd(q, p);
+    }
+
+    long a = cont(p);
+    long b = cont(q);
+    long c = gcd(a, b);
+
+    polynomial p1 = prim(p);
+    polynomial q1 = prim(q);
+    polynomial r;
+
+    // while q1 is not zero
+    while(lc(&q1)) {
+        r = prem(&p1, &q1);
+
+        free(p1.terms);
+        p1 = q1;
+        prim_in_place(&r);
+        q1 = r;
+    }
+    free(r.terms);
+    scalar_prod_in_place(c, &p1);
+    return p1;
 }
 
 /* Assumes that the terms of the polynomials are sorted by exponent!  */
