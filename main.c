@@ -16,7 +16,7 @@ int main(int argc, char* argv[argc]) {
     display(&p);
     display(&g);
 
-    polynomial h = add(p, g);
+    polynomial h = add(&p, &g);
     display(&h);
 
     return 0;
