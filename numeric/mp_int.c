@@ -4,6 +4,9 @@
 #include <assert.h>
 #include <stdio.h>
 
+#define LARGEST_BITS 0xffffffff00000000
+#define SMALLEST_BITS 0x00000000ffffffff
+
 typedef struct darr darr;
 struct darr {
     size_t n;
@@ -25,8 +28,12 @@ void darr_insert(darr* const d, uint64_t item) {
         d->n++;
         d->arr[d->n] = item;
     } else {
-        d->arr = realloc(d->arr, 2 * d->capacity * sizeof(uint64_t));
-        if (!d->arr) perror("Issue rellocating memory on insert to darr");
+        uint64_t* temp = realloc(d->arr, 2 * d->capacity * sizeof(uint64_t));
+        if (!temp) {
+            perror("Issue rellocating memory on insert to darr");
+            exit(EXIT_FAILURE);
+        }
+        d->arr = temp;
         d->n++;
         d->capacity *= 2;
         d->arr[d->n] = item;
@@ -36,7 +43,12 @@ void darr_insert(darr* const d, uint64_t item) {
 uint64_t darr_pop(darr* const d) {
     uint64_t out = d->arr[--d->n];
     if (d->n < 2 && d->n < d->capacity / 4) {
-        d->arr = realloc(d->arr, d->capacity / 2 * sizeof(uint64_t));
+        uint64_t* temp = realloc(d->arr, d->capacity / 2 * sizeof(uint64_t));
+        if (!temp) {
+            perror("Error reallocating memory in darr_pop");
+            exit(EXIT_FAILURE);
+        }
+        d->arr = temp;
     }
 }
 
@@ -49,6 +61,16 @@ void darr_reverse(darr* const d) {
         d->arr[j] = temp;
         i++; j--;
     }
+}
+
+void darr_set_capacity(darr* const d, size_t c) {
+    d->capacity = c;
+    uint64_t* temp = (d->arr, d->capacity * sizeof(uint64_t));
+    if (!temp) {
+        perror("Issue reallocating in darr_set_capacity");
+        exit(EXIT_FAILURE);
+    }
+    d->arr = temp;
 }
 
 inline uint64_t pow_of_10(uint16_t n) {
@@ -97,6 +119,10 @@ mp_int mpint_init(const char* num) {
         i += j;
     }
     darr_reverse(out.arr);  
+    // remove leading zeroes
+    while (out.arr->arr[out.arr->n] == 0) {
+            darr_pop(out.arr);
+    }
     return out;
 }
 
@@ -236,7 +262,55 @@ mp_int mpint_sub(const mp_int* const m1, const mp_int* const m2) {
     return out;   
 }
 
-mp_int mpint_prod(const mp_int* const, const mp_int* const);
+/* Multiplication using the shift and add algorithm. */
+mp_int mpint_prod(const mp_int* const m1, const mp_int* const m2) {
+    mp_int accum = mpint_init("0\0");
+    darr_set_capacity(accum.arr, m1->arr->n + m2->arr->n + 1);
+    size_t offset = 0;
+    uint64_t remainder, carry = 0;
+    
+    while (offset < m1->arr->n) {
+        for (size_t index = 0; index < m2->arr->n; index++) {
+            // we have to do a Karatsbua-like multiplication here in order to handle 
+            // overflowing integers. Using words of length b, the product can be of 
+            // size (b-1)^2 = b^2 - 2b + 1 = b(b - 2) + 1 >> b. In order to get the 
+            // carry and the remainder, we split each word into the top and bottom half, 
+            // then combine them. See example with (binary) words of length 4.
+            // 10 11
+            // 11 01
+            // --------------
+            // (0011 * 0001) + 4(0010 * 0001) + 4(0011 * 0011) + 16(0010 * 0011)
+            // 0011 + 4(0010) + 4(1001) + 16(0110)
+            // 0011 + 0000 1000 + 0010 0100 + 0110 0000
+            uint64_t a = m1->arr->arr[offset] & SMALLEST_BITS;
+            uint64_t b = (m1->arr->arr[offset] & LARGEST_BITS) >> 32;
+            uint64_t c = m2->arr->arr[index] & SMALLEST_BITS;
+            uint64_t d = (m2->arr->arr[index] & LARGEST_BITS) >> 32;
+
+            remainder = a * c + (a * d) << 32 + (b * c) << 32;
+            // automatically overflows to the corrrect value.
+            accum.arr->arr[offset + index] += (remainder + carry);
+            carry = (a * d) >> 32 + (b * c) >> 32 + c * d;
+            // Check to see if adding to accum caused overflow and update
+            // the carry accordingly. If there is no overflow, then addition is 
+            // monotone increasing, so the second condition should not be true.
+            if ((carry > UINT64_MAX - remainder) || 
+                (accum.arr->arr[offset + index] - remainder - carry < accum.arr->arr[offset + index])) {
+                carry += 1; 
+            }
+        }
+        // If there is still carry, add it to accum.
+        if (carry) {
+            accum.arr->arr[offset + m1->arr->n] += carry;
+        }
+    }
+    // If there is still carry, add it to accum.
+    if (carry) {
+        accum.arr->arr[offset + m1->arr->n] += carry;
+    }
+    return accum;
+}
+
 mp_int mpint_div(const mp_int* const, const mp_int* const);
 mp_int mpint_pow(const mp_int* const, const mp_int* const);
 
