@@ -6,7 +6,7 @@
 #include <math.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "../polynomial/polynomial.h"
+#include "../polynomial/sum.h"
 
 typedef struct heap heap;
 
@@ -21,11 +21,7 @@ typedef struct heap heap;
  *                    is less than or equal to the exponent of all its descendants.
  * 
 */
-struct heap {
-    size_t heap_size;
-    size_t heap_max;
-    term* arr;
-};
+struct heap;
 
 int increase_key(heap* h, size_t elem, int new_key);
 
@@ -49,22 +45,6 @@ term* heap_sort(size_t n, term* arr);
 
 void free_heap(heap* h);
 
-static inline size_t left(size_t i) {
-    return 2 * i + 1;
-}
-
-static inline size_t right(size_t i) {
-    return 2 * i + 2;
-}
-
-/* If i = 0, returns 0. i.e. parent of the root is the root. */
-static inline size_t parent(size_t i) {
-    if (i == 0) return 0;
-    return (i - 1) / 2;
-}
-
-static inline int is_empty(const heap* const h) {
-    return (h->heap_size == 0);
-}
+inline int is_empty(const heap* const h);
 
 #endif

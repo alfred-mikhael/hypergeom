@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include "./heap.h"
 
+struct heap {
+    size_t heap_size;
+    size_t heap_max;
+    term* arr;
+};
 
 int increase_key(heap* h, size_t elem, int new_key) {
     h->arr[elem].exp = new_key;
@@ -17,8 +22,12 @@ int heap_insert(heap* h, term t) {
         return 0;
     } else {
         /* If at max memory, double the size of the list. This gives O(log n) amortized insertion. */
-        h->arr = reallocarray(h->arr, 2 * h->heap_max, sizeof(term));
-        if (!h->arr) perror("Could not allocate more memory in exponent heap");
+        term* tmp = reallocarray(h->arr, 2 * h->heap_max, sizeof(term)); 
+        if (!tmp) {
+            perror("Could not allocate more memory in exponent heap");
+            exit(EXIT_FAILURE);
+        }
+        h->arr = tmp; 
         h->heap_max = 2 * h->heap_max;
         return heap_insert(h, t);
     }
@@ -39,8 +48,12 @@ int heap_remove(heap* h, size_t elem) {
     /* Except in the case when heap_size is very small, when it is not worth it. */
     if (h->heap_size > 20 && h->heap_size < (int) (0.25 * h->heap_max)) {
         h->heap_max = (int) (0.5 * h-> heap_max);
-        h->arr = realloc(h->arr, h->heap_max);
-        if (!h->arr) perror("Could not resize exponent heap after removal");
+        term* tmp = realloc(h->arr, h->heap_max); 
+        if (!tmp) {
+            perror("Error in realloc in heap_remove");
+            exit(EXIT_FAILURE);
+        }
+        h->arr = tmp;
     }
     return 0;
 }
@@ -56,8 +69,12 @@ term extract_max(heap* h) {
     /* In order to avoid wasting memory, make sure that heap is always 1/4 full */
     if (h->heap_size > 20 && h->heap_size < (int) (0.25 * h->heap_max)) {
         h->heap_max = (int) (0.5 * h-> heap_max);
-        h->arr = realloc(h->arr, h->heap_max);
-        if (!h->arr) perror("Could not resize exponent heap after removal");
+        term* tmp = realloc(h->arr, h->heap_max);
+        if (!tmp) {
+            perror("Could not resize exponent heap after removal");
+            exit(EXIT_FAILURE);
+        }
+        h->arr = tmp;
     }
 
     heapify(h, 0);
@@ -141,4 +158,22 @@ void free_heap(heap* h) {
     h->arr = 0;
     free(h);
     h = 0;
+}
+
+inline size_t left(size_t i) {
+    return 2 * i + 1;
+}
+
+inline size_t right(size_t i) {
+    return 2 * i + 2;
+}
+
+/* If i = 0, returns 0. i.e. parent of the root is the root. */
+inline size_t parent(size_t i) {
+    if (i == 0) return 0;
+    return (i - 1) / 2;
+}
+
+inline int is_empty(const heap* const h) {
+    return (h->heap_size == 0);
 }
